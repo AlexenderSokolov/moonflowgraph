@@ -1,0 +1,7 @@
+import {
+  "AlexenderSokolov/moonflowgraph"
+}
+
+options(
+  "is-main": true,
+)
