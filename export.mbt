@@ -73,11 +73,30 @@ pub fn FlowGraph::to_json(self : FlowGraph, plan : ExecutionPlan, trace : Trace)
     out <+ "{"
     let id = escape_json(task.id.value)
     let title = escape_json(task.title)
+    let description = escape_json(task.description)
     let status = escape_json(task.status.label())
     out <+ "\"id\":\"\{id}\","
     out <+ "\"title\":\"\{title}\","
-    out <+ "\"status\":\"\{status}\""
+    out <+ "\"description\":\"\{description}\","
+    out <+ "\"status\":\"\{status}\","
+    out <+ "\"inputs\":"
+    write_json_strings(out, task.inputs)
+    out <+ ",\"outputs\":"
+    write_json_strings(out, task.outputs)
+    out <+ ",\"tags\":"
+    write_json_strings(out, task.tags)
     out <+ "}"
+  }
+  out <+ "],\n"
+  out <+ "  \"dependencies\": ["
+  for i = 0; i < self.dependencies().length(); i = i + 1 {
+    if i > 0 {
+      out <+ ", "
+    }
+    let dep = self.dependencies()[i]
+    let before = escape_json(dep.before.value)
+    let after = escape_json(dep.after.value)
+    out <+ "{\"before\":\"\{before}\",\"after\":\"\{after}\"}"
   }
   out <+ "],\n"
   out <+ "  \"trace\": ["
@@ -100,6 +119,18 @@ pub fn FlowGraph::to_json(self : FlowGraph, plan : ExecutionPlan, trace : Trace)
   out <+ "]\n"
   out <+ "}\n"
   out.to_string()
+}
+
+fn write_json_strings(out : StringBuilder, values : Array[String]) -> Unit {
+  out <+ "["
+  for i = 0; i < values.length(); i = i + 1 {
+    if i > 0 {
+      out <+ ", "
+    }
+    let value = escape_json(values[i])
+    out <+ "\"\{value}\""
+  }
+  out <+ "]"
 }
 
 fn join_ids(ids : Array[TaskId], sep : String) -> String {

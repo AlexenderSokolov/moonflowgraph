@@ -108,6 +108,16 @@ pub fn FlowGraph::dependencies(self : FlowGraph) -> Array[Dependency] {
   self.dependencies
 }
 
+///| Return the number of task nodes.
+pub fn FlowGraph::task_count(self : FlowGraph) -> Int {
+  self.tasks.length()
+}
+
+///| Return the number of dependency edges.
+pub fn FlowGraph::dependency_count(self : FlowGraph) -> Int {
+  self.dependencies.length()
+}
+
 ///| Add a task node. Duplicate ids return `DuplicateTask`.
 pub fn FlowGraph::add_task(self : FlowGraph, node : TaskNode) -> Result[Unit, GraphError] {
   if self.contains_task(node.id) {
@@ -126,6 +136,64 @@ pub fn FlowGraph::add_dependency(
   let dep = { before, after }
   self.dependencies.push(dep)
   Ok(())
+}
+
+///| Update the status of an existing task.
+pub fn FlowGraph::update_status(
+  self : FlowGraph,
+  id : TaskId,
+  status : TaskStatus,
+) -> Result[Unit, GraphError] {
+  for i = 0; i < self.tasks.length(); i = i + 1 {
+    if self.tasks[i].id == id {
+      self.tasks[i] = { ..self.tasks[i], status }
+      return Ok(())
+    }
+  }
+  Err(MissingTask(id))
+}
+
+///| Return immediate predecessor ids for a task.
+pub fn FlowGraph::predecessors(self : FlowGraph, id : TaskId) -> Result[Array[TaskId], GraphError] {
+  if !self.contains_task(id) {
+    return Err(MissingTask(id))
+  }
+  let out : Array[TaskId] = []
+  for dep in self.dependencies {
+    if dep.after == id {
+      out.push(dep.before)
+    }
+  }
+  Ok(out)
+}
+
+///| Return immediate successor ids for a task.
+pub fn FlowGraph::successors(self : FlowGraph, id : TaskId) -> Result[Array[TaskId], GraphError] {
+  if !self.contains_task(id) {
+    return Err(MissingTask(id))
+  }
+  Ok(self.successor_ids(id))
+}
+
+///| Return tasks whose predecessors are all in `done`.
+pub fn FlowGraph::ready_tasks(self : FlowGraph, done : Array[TaskId]) -> Result[Array[TaskId], GraphError] {
+  match self.validate() {
+    Err(err) => Err(err)
+    Ok(_) => {
+      for id in done {
+        if !self.contains_task(id) {
+          return Err(MissingTask(id))
+        }
+      }
+      let ready : Array[TaskId] = []
+      for task in self.tasks {
+        if !contains_id(done, task.id) && self.all_predecessors_consumed(task.id, done) {
+          ready.push(task.id)
+        }
+      }
+      Ok(ready)
+    }
+  }
 }
 
 ///| Validate all edge endpoints and cycle freedom.
@@ -232,7 +300,7 @@ fn FlowGraph::all_predecessors_consumed(
   true
 }
 
-fn FlowGraph::successors(self : FlowGraph, id : TaskId) -> Array[TaskId] {
+fn FlowGraph::successor_ids(self : FlowGraph, id : TaskId) -> Array[TaskId] {
   let out : Array[TaskId] = []
   for dep in self.dependencies {
     if dep.before == id {
@@ -267,7 +335,7 @@ fn FlowGraph::visit_for_cycle(
     return Some(cycle_suffix(visiting, id))
   }
   visiting.push(id)
-  for next in self.successors(id) {
+  for next in self.successor_ids(id) {
     match self.visit_for_cycle(next, visiting, visited) {
       Some(path) => return Some(path)
       None => continue

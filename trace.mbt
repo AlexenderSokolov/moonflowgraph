@@ -47,6 +47,33 @@ pub fn Trace::events(self : Trace) -> Array[TraceEvent] {
   self.events
 }
 
+///| Return events for a single task id in append order.
+pub fn Trace::events_for(self : Trace, task_id : TaskId) -> Array[TraceEvent] {
+  let out : Array[TraceEvent] = []
+  for event in self.events {
+    if event.task_id == task_id {
+      out.push(event)
+    }
+  }
+  out
+}
+
+///| Render a compact Markdown summary of trace events.
+pub fn Trace::summary_markdown(self : Trace) -> String {
+  let out = StringBuilder()
+  out <+ "## Trace Summary\n\n"
+  if self.events.is_empty() {
+    out <+ "- No trace events recorded.\n"
+    return out.to_string()
+  }
+  for event in self.events {
+    out <+ "- `\{event.timestamp}` \{event.task_id.value} "
+    out <+ "\{event.event_type.label()}: \{event.message}\n"
+  }
+  out.to_string()
+}
+
+///| Return a stable human-readable task status label.
 pub fn TaskStatus::label(self : TaskStatus) -> String {
   match self {
     Pending => "pending"
@@ -58,6 +85,7 @@ pub fn TaskStatus::label(self : TaskStatus) -> String {
   }
 }
 
+///| Return a stable human-readable event type label.
 pub fn TraceEventType::label(self : TraceEventType) -> String {
   match self {
     Planned => "planned"
@@ -69,6 +97,7 @@ pub fn TraceEventType::label(self : TraceEventType) -> String {
   }
 }
 
+///| Return a readable diagnostic message for a graph error.
 pub fn GraphError::message(self : GraphError) -> String {
   match self {
     DuplicateTask(id) => "duplicate task: \{id.value}"

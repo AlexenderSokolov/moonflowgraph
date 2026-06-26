@@ -3,21 +3,36 @@
 ## v0.1
 
 - Core task graph model.
+- Task metadata: description, inputs, outputs, tags, and status.
 - Dependency validation.
 - Cycle detection.
 - Topological ordering.
 - Parallel-ready execution batches.
+- Incremental ready-task query.
+- Predecessor and successor queries.
+- Task status updates.
 - Provenance trace log.
-- Markdown and JSON export.
-- Demo workflow for research/agent automation.
-- README, design notes, CI, and contest proposal materials.
+- Per-task trace filtering and trace Markdown summary.
+- Markdown and JSON export with tasks, dependencies, batches, and trace events.
+- Demo workflow for research/agent automation with real parallel batches.
+- English README, Chinese README, project memory, design notes, roadmap, CI, and contest proposal materials.
+
+## v0.1 Acceptance Checklist
+
+- `moon check` passes.
+- `moon test` passes.
+- `moon run cmd/demo` prints Markdown and JSON outputs.
+- The demo shows `collect_papers` and `prepare_dataset` running in the first parallel batch.
+- Documentation explains the boundary between a task graph library and a full Agent runtime.
 
 ## v0.2
 
-- More structured JSON escaping and schema examples.
+- Stable JSON schema document and fixture snapshots.
 - Import/export round trips for workflow descriptions.
-- More tests for disconnected graphs and large DAGs.
 - CLI command for reading a small workflow file.
+- Optional graph indexes for faster lookup in larger DAGs.
+- Additional tests for larger disconnected graphs and error diagnostics.
+- Mooncakes package publishing polish.
 
 ## v0.x Not Planned Yet
 

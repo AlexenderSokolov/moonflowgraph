@@ -4,6 +4,8 @@ MoonFlowGraph is a MoonBit task graph and provenance trace library for reproduci
 
 It helps a developer describe a workflow as a directed acyclic graph, validate dependencies, generate an execution plan, and export a compact trace report for handoff, review, or experiment reproduction.
 
+Chinese documentation for contest review is available in [README.zh.md](README.zh.md).
+
 ## Who It Is For
 
 - Researchers who split experiments into data, baseline, comparison, and report tasks.
@@ -16,8 +18,10 @@ It helps a developer describe a workflow as a directed acyclic graph, validate d
 - Tracks dependency edges and validates missing endpoints.
 - Detects cycles and returns readable paths.
 - Produces topological order and parallel-ready execution batches.
+- Queries predecessors, successors, ready tasks, and graph size.
+- Updates task status during a run or replay.
 - Records provenance events in append order.
-- Exports Markdown and JSON reports.
+- Filters trace events by task and exports Markdown/JSON reports.
 
 ## What It Does Not Do
 
@@ -50,22 +54,29 @@ guard graph.plan() is Ok(plan) else { fail("invalid graph") }
 The demo builds this workflow:
 
 ```text
-collect_papers -> extract_claims -> run_baseline -> compare_metrics -> write_report
+collect_papers   prepare_dataset
+      |                 |
+      v                 v
+extract_claims    run_baseline
+      \                 /
+       v               v
+          compare_metrics -> write_report
 ```
 
-It prints a Markdown report with execution order, batches, task metadata, and trace events.
+It prints a Markdown report and a JSON snapshot with execution order, parallel batches, task metadata, dependencies, and trace events.
 
 ## Project Layout
 
 ```text
 moonflowgraph/
-├── flowgraph.mbt        # task graph, validation, DAG planning
-├── trace.mbt            # provenance events and readable labels
-├── export.mbt           # Markdown and JSON export
-├── flowgraph_test.mbt   # core behavior tests
-├── cmd/demo/            # runnable demo
-├── docs/                # design and roadmap
-└── 参赛要求（先看）/       # contest proposal materials
+|-- flowgraph.mbt        # task graph, validation, DAG planning
+|-- trace.mbt            # provenance events and readable labels
+|-- export.mbt           # Markdown and JSON export
+|-- flowgraph_test.mbt   # core behavior tests
+|-- cmd/demo/            # runnable demo
+|-- docs/                # design and roadmap
+|-- README.zh.md         # Chinese contest-facing documentation
+`-- PROJECT.md           # project memory and acceptance checklist
 ```
 
 ## Contest Positioning
