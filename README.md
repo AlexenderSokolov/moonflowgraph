@@ -2,15 +2,11 @@
 
 MoonFlowGraph is a MoonBit task graph and provenance trace library for reproducible research automation and agent workflows.
 
-It helps a developer describe a workflow as a directed acyclic graph, validate dependencies, generate an execution plan, and export a compact trace report for handoff, review, or experiment reproduction.
+The project grew out of a recurring problem I ran into while maintaining research automation plugins: the task list lived in a plan, dependencies were implicit in code, and the evidence from a run was scattered across logs and temporary files. That works for a short script. It becomes hard to reason about once literature search, data preparation, baselines, metric comparison, and report writing start to overlap.
 
-Chinese documentation for contest review is available in [README.zh.md](README.zh.md).
+MoonFlowGraph extracts that small but useful layer into a standalone library. It describes what should happen, checks whether the dependency graph is sound, shows what can run in parallel, and records what happened. It does not execute the workflow itself.
 
-## Who It Is For
-
-- Researchers who split experiments into data, baseline, comparison, and report tasks.
-- Agent builders who need a lightweight task graph before connecting real model calls.
-- MoonBit developers who want a reusable workflow/provenance component rather than a one-off demo.
+Chinese documentation is available in [README.zh.md](README.zh.md).
 
 ## What It Does
 
@@ -23,14 +19,14 @@ Chinese documentation for contest review is available in [README.zh.md](README.z
 - Records provenance events in append order.
 - Filters trace events by task and exports Markdown/JSON reports.
 
-## What It Does Not Do
+## What It Deliberately Leaves Out
 
 - It does not call LLM APIs.
 - It does not execute shell commands.
 - It does not replace a full agent runtime.
 - It does not store secrets or credentials.
 
-MoonFlowGraph is the small reproducibility layer underneath a larger automation system.
+Those concerns belong to an upper-level runtime. Keeping them outside this package makes the planning and evidence layer independently testable and reusable.
 
 ## Quick Start
 
@@ -51,7 +47,7 @@ let _ = graph.add_dependency(TaskId::new("collect_papers"), TaskId::new("write_r
 guard graph.plan() is Ok(plan) else { fail("invalid graph") }
 ```
 
-The demo builds this workflow:
+The demo follows a concrete path from literature and dataset preparation to a research report:
 
 ```text
 collect_papers   prepare_dataset
@@ -63,7 +59,7 @@ extract_claims    run_baseline
           compare_metrics -> write_report
 ```
 
-It prints a Markdown report and a JSON snapshot with execution order, parallel batches, task metadata, dependencies, and trace events.
+Its trace records useful evidence such as the search scope, dataset snapshot, baseline configuration, and comparison rationale. It prints a Markdown report and a JSON snapshot with execution order, parallel batches, task metadata, dependencies, and trace events.
 
 ## Project Layout
 
@@ -75,13 +71,18 @@ moonflowgraph/
 |-- flowgraph_test.mbt   # core behavior tests
 |-- cmd/demo/            # runnable demo
 |-- docs/                # design and roadmap
-|-- README.zh.md         # Chinese contest-facing documentation
+|-- README.zh.md         # Chinese documentation
 `-- PROJECT.md           # project memory and acceptance checklist
 ```
 
-## Contest Positioning
+## Repositories
 
-MoonFlowGraph is intended for the MoonBit domestic open-source ecosystem contest. It is an original project inspired by common DAG workflow, task planning, and provenance trace ideas. It does not directly port a specific upstream project. If later versions reuse code, test data, or algorithms from a concrete upstream source, the source and license will be documented.
+- GitHub: <https://github.com/AlexenderSokolov/moonflowgraph>
+- GitLink: <https://gitlink.org.cn/SpringBack_25/moonflowgraph>
+
+## Development Note
+
+MoonFlowGraph is an original MoonBit implementation based on general DAG, workflow, and provenance ideas rather than a port of a particular upstream project. AI tools assisted with implementation, testing, and documentation; project selection, scope decisions, acceptance, and submission remain the author's responsibility.
 
 ## License
 

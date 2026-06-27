@@ -4,9 +4,9 @@
 
 MoonFlowGraph is a small MoonBit library for reproducible research and agent workflow planning. It models tasks, dependency edges, execution plans, and provenance events.
 
-The design deliberately stays below a full runtime. A larger system can use MoonFlowGraph to decide what should run and how to report it, while keeping model calls, shell execution, scheduling, and storage outside this package.
+The project comes from a practical maintenance problem. In research automation tools, a plan is often readable before execution, but the relationship between that plan and the evidence produced by a run becomes difficult to inspect later. MoonFlowGraph keeps both pieces close: the DAG describes the intended work, and the trace records the evidence left by that work.
 
-In a DeepScientist-style workflow, this package is the "plan and evidence ledger" layer: it can describe the task graph and record what happened, but it does not decide scientific hypotheses, call models, run experiments, or judge final claims.
+The package stays below a full runtime. A larger system can use it as a plan and evidence ledger while keeping model calls, shell execution, scheduling, and storage in the layer that already owns those concerns.
 
 ## Core Boundary
 
@@ -38,7 +38,7 @@ MoonFlowGraph does not own:
 - `ExecutionPlan` stores both serial order and batch order.
 - `TraceEvent` stores task id, event type, message, and timestamp.
 
-The first implementation uses arrays rather than a map-heavy internal model. That keeps the package readable for contest review and simple enough to port across MoonBit targets. A later version can add indexes once the public API is stable.
+The first implementation uses arrays rather than a map-heavy internal model. The expected graphs are small research workflows, and arrays keep mutation and traversal behavior straightforward while the public API settles. A later version can add indexes without changing callers.
 
 ## Planning Model
 
@@ -47,7 +47,7 @@ The planner exposes two complementary views:
 - `topological_sort()` returns a serial order that satisfies dependencies.
 - `execution_batches()` returns layers of tasks that can run in parallel once previous layers have completed.
 
-The demo intentionally uses two independent starting tasks (`collect_papers` and `prepare_dataset`) so the first batch shows real parallelism. Later batches converge into `compare_metrics`, which mirrors common research workflows where literature-derived claims and experimental metrics must meet before writing a report.
+The demo uses two independent starting tasks (`collect_papers` and `prepare_dataset`). Later batches converge into `compare_metrics`, mirroring a common research workflow: literature-derived criteria and experimental measurements have to meet before a report can make a defensible comparison.
 
 `ready_tasks(done)` is a smaller incremental primitive for callers that do their own scheduling. Given a set of completed task ids, it returns tasks whose predecessors are all complete and that are not already done.
 
@@ -66,20 +66,20 @@ Cycle errors carry a readable path, for example `a -> b -> a`. Missing endpoints
 
 ## Export Model
 
-Markdown export is optimized for human handoff and contest review. JSON export is optimized for downstream tooling and includes:
+Markdown export is meant for a person picking up or reviewing a run. JSON export is meant for downstream tooling and includes:
 
 - order and batches;
 - task id, title, description, status, inputs, outputs, and tags;
 - dependency edges;
 - trace events.
 
-The current JSON writer is deliberately dependency-free and compact. It escapes common JSON string characters and keeps schema shape stable enough for tests and future CLI work.
+The current JSON writer has no external dependency. It escapes common JSON string characters and keeps the schema small enough to cover with tests. If the package later needs round-trip import or a versioned schema, this should move to a structured JSON library.
 
-## Relationship To DeepScientist-Style Workflows
+## Origin In Research Automation Work
 
-The project idea is informed by prior work on automated research agents: a research quest needs a clear task plan, inspectable state transitions, and a handoff record. MoonFlowGraph captures that reusable substrate in MoonBit without copying any DeepScientist runtime or plugin code.
+The project idea is informed by maintaining research automation plugins. Those systems repeatedly need a clear task plan, inspectable state transitions, and a handoff record, even when their model providers, runners, and storage choices are completely different.
 
-That boundary is important for originality and feasibility. A full research agent includes model routing, prompt policies, browser or shell actions, experiment runners, memory stores, and paper-writing loops. MoonFlowGraph extracts only the reusable infrastructure that such systems repeatedly need:
+MoonFlowGraph extracts only the infrastructure that can be useful across those systems:
 
 - explicit task decomposition;
 - dependency sanity checks before execution;
@@ -87,4 +87,4 @@ That boundary is important for originality and feasibility. A full research agen
 - trace records for reproducibility;
 - portable Markdown/JSON handoff artifacts.
 
-This makes the v0.1 product small enough to validate with unit tests while still connecting naturally to the author's previous research automation experience.
+This keeps the library small enough to reason about and validate with unit tests. It also leaves room for callers to choose their own execution, storage, and model layers instead of inheriting a second runtime.

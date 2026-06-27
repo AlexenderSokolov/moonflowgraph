@@ -15,7 +15,7 @@
 - Per-task trace filtering and trace Markdown summary.
 - Markdown and JSON export with tasks, dependencies, batches, and trace events.
 - Demo workflow for research/agent automation with real parallel batches.
-- English README, Chinese README, project memory, design notes, roadmap, CI, and contest proposal materials.
+- English and Chinese documentation, design notes, project memory, and CI.
 
 ## v0.1 Acceptance Checklist
 
@@ -24,6 +24,7 @@
 - `moon run cmd/demo` prints Markdown and JSON outputs.
 - The demo shows `collect_papers` and `prepare_dataset` running in the first parallel batch.
 - Documentation explains the boundary between a task graph library and a full Agent runtime.
+- The trace demonstrates why a task ran and which artifacts it left, not only that it completed.
 
 ## v0.2
 

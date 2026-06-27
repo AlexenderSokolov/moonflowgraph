@@ -36,7 +36,7 @@ pub(all) struct ExecutionPlan {
   batches : Array[Array[TaskId]]
 } derive(Eq, Debug)
 
-///| Graph errors are intentionally readable for contest review and demo output.
+///| Graph errors retain the ids and edges needed for useful diagnostics.
 pub(all) enum GraphError {
   DuplicateTask(TaskId)
   MissingTask(TaskId)
