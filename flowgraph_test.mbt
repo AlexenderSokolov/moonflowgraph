@@ -168,6 +168,27 @@ test "predecessors and successors return immediate neighbors" {
 }
 
 ///|
+test "roots and leaves identify workflow boundaries" {
+  let graph = sample_graph()
+  guard graph.roots() is Ok(roots) else { fail("expected roots") }
+  debug_inspect(roots.length(), content="2")
+  debug_inspect(roots[0].value, content="\"collect_papers\"")
+  debug_inspect(roots[1].value, content="\"prepare_dataset\"")
+  guard graph.leaves() is Ok(leaves) else { fail("expected leaves") }
+  debug_inspect(leaves.length(), content="1")
+  debug_inspect(leaves[0].value, content="\"write_report\"")
+}
+
+///|
+test "roots and leaves reject invalid graphs" {
+  let graph = FlowGraph::new()
+  let _ = graph.add_task(TaskNode::new("a", "A"))
+  let _ = graph.add_dependency(TaskId::new("a"), TaskId::new("missing"))
+  debug_inspect(graph.roots() is Err(MissingDependencyEndpoint(_)), content="true")
+  debug_inspect(graph.leaves() is Err(MissingDependencyEndpoint(_)), content="true")
+}
+
+///|
 test "ready tasks identify parallel work" {
   let graph = sample_graph()
   guard graph.ready_tasks([]) is Ok(first_ready) else { fail("expected ready tasks") }

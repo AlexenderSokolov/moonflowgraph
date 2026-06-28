@@ -119,6 +119,44 @@ pub fn FlowGraph::dependency_count(self : FlowGraph) -> Int {
   self.dependencies.length()
 }
 
+///| Return tasks with no incoming dependency edges.
+pub fn FlowGraph::roots(self : FlowGraph) -> Result[Array[TaskId], GraphError] {
+  match self.validate() {
+    Err(err) => Err(err)
+    Ok(_) => {
+      let roots : Array[TaskId] = []
+      for task in self.tasks {
+        let mut has_predecessor = false
+        for dep in self.dependencies {
+          if dep.after == task.id {
+            has_predecessor = true
+          }
+        }
+        if !has_predecessor {
+          roots.push(task.id)
+        }
+      }
+      Ok(roots)
+    }
+  }
+}
+
+///| Return tasks with no outgoing dependency edges.
+pub fn FlowGraph::leaves(self : FlowGraph) -> Result[Array[TaskId], GraphError] {
+  match self.validate() {
+    Err(err) => Err(err)
+    Ok(_) => {
+      let leaves : Array[TaskId] = []
+      for task in self.tasks {
+        if self.successor_ids(task.id).is_empty() {
+          leaves.push(task.id)
+        }
+      }
+      Ok(leaves)
+    }
+  }
+}
+
 ///| Add a task node. Duplicate ids return `DuplicateTask`.
 pub fn FlowGraph::add_task(self : FlowGraph, node : TaskNode) -> Result[Unit, GraphError] {
   if self.contains_task(node.id) {
