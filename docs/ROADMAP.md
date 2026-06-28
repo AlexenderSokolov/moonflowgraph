@@ -5,15 +5,18 @@
 - Core task graph model.
 - Task metadata: description, inputs, outputs, tags, and status.
 - Dependency validation.
+- Duplicate dependency rejection.
 - Cycle detection.
 - Topological ordering.
 - Parallel-ready execution batches.
 - Incremental ready-task query.
 - Predecessor and successor queries.
+- Root and leaf task queries.
 - Task status updates.
 - Provenance trace log.
 - Per-task trace filtering and trace Markdown summary.
-- Markdown and JSON export with tasks, dependencies, batches, and trace events.
+- Trace event counts and latest-event lookup.
+- Markdown, JSON, and Mermaid export with tasks, dependencies, batches, and trace events.
 - Demo workflow for research/agent automation with real parallel batches.
 - English and Chinese documentation, design notes, project memory, and CI.
 

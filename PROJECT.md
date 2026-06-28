@@ -17,7 +17,7 @@ MoonFlowGraph 来自维护科研自动化插件时反复遇到的问题：任务
 
 - 帮助开发者判断一个科研/Agent 工作流是否存在缺失依赖或循环依赖。
 - 给出串行拓扑顺序和可并行批次，支撑后续调度器或人工执行。
-- 记录任务级事件，生成可复现的 Markdown 报告和 JSON 快照。
+- 记录任务级事件，生成可复现的 Markdown 报告、JSON 快照和 Mermaid 任务图。
 - 明确区分“任务图与追踪基础设施”和“模型调用、shell 执行、分布式调度”等更大 runtime 能力。
 
 ## 工作流程
@@ -25,15 +25,15 @@ MoonFlowGraph 来自维护科研自动化插件时反复遇到的问题：任务
 1. 使用 `FlowGraph::new()` 创建任务图。
 2. 用 `TaskNode::new()` 和 `with_*` 方法添加任务元数据。
 3. 用 `add_dependency(before, after)` 添加依赖边。
-4. 运行 `validate()`、`topological_sort()`、`execution_batches()` 或 `plan()` 生成可执行结构。
-5. 在执行或回放过程中用 `update_status()` 更新任务状态，用 `Trace::record()` 记录事件。
-6. 用 `to_markdown()` 或 `to_json()` 导出报告。
+4. 运行 `validate()`、`topological_sort()`、`execution_batches()` 或 `plan()` 生成可执行结构，并用 `roots()` / `leaves()` 检查工作流边界。
+5. 在执行或回放过程中用 `update_status()` 更新任务状态，用 `Trace::record()` 记录事件，用 `latest_for()` 查询任务的最近记录。
+6. 用 `to_markdown()`、`to_json()` 或 `to_mermaid()` 导出结果。
 
 ## 代码结构
 
 - `flowgraph.mbt`：核心公开 API、任务节点、依赖边、DAG 校验、拓扑排序、并行批次、ready 任务查询。
 - `trace.mbt`：trace 事件类型、事件记录、任务状态标签、错误消息和 trace 摘要。
-- `export.mbt`：Markdown/JSON 导出。
+- `export.mbt`：Markdown、JSON 和 Mermaid 导出。
 - `flowgraph_test.mbt`：核心行为测试。
 - `cmd/demo/main.mbt`：科研/Agent 工作流 demo。
 - `docs/DESIGN.md`：设计边界和取舍。
@@ -54,7 +54,7 @@ moon run cmd/demo
 
 - `moon check` 无错误。
 - `moon test` 全部通过。
-- `moon run cmd/demo` 能输出并行批次、任务状态、trace、Markdown 报告和 JSON 快照。
+- `moon run cmd/demo` 能输出并行批次、任务状态、trace、Markdown 报告、JSON 快照和 Mermaid 任务图。
 - 文档能从实际问题出发说明项目动机、适用场景、非目标和 API 示例。
 - 仓库不提交本地工具链 `.moon/`、构建产物 `_build/`、个人报名材料或隐私信息。
 
@@ -62,6 +62,7 @@ moon run cmd/demo
 
 - 当前内部使用数组而不是哈希表，因为目标工作流规模较小，数组实现的遍历和可变状态更直接；后续可在不改变公共 API 的前提下增加索引。
 - `add_dependency` 暂不立即拒绝缺失端点，统一由 `validate()` 给出 `MissingDependencyEndpoint`，方便先构建再校验。
+- `add_dependency` 立即拒绝完全相同的重复边，避免依赖计数和导出结果重复。
 - cycle error 返回可读路径，例如 `a -> b -> a`，便于 CLI/demo 直接展示。
 - JSON 导出先使用手写字符串生成，保证无额外依赖；后续若 MoonBit JSON 生态成熟，可替换为结构化序列化。
 

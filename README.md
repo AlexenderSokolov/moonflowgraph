@@ -12,12 +12,14 @@ Chinese documentation is available in [README.zh.md](README.zh.md).
 
 - Defines task nodes with inputs, outputs, tags, and status.
 - Tracks dependency edges and validates missing endpoints.
+- Rejects duplicate dependency edges.
 - Detects cycles and returns readable paths.
 - Produces topological order and parallel-ready execution batches.
-- Queries predecessors, successors, ready tasks, and graph size.
+- Queries roots, leaves, predecessors, successors, ready tasks, and graph size.
 - Updates task status during a run or replay.
 - Records provenance events in append order.
-- Filters trace events by task and exports Markdown/JSON reports.
+- Filters trace events by task and returns the latest event for a task.
+- Exports Markdown reports, JSON snapshots, and Mermaid flowcharts.
 
 ## What It Deliberately Leaves Out
 
@@ -59,7 +61,9 @@ extract_claims    run_baseline
           compare_metrics -> write_report
 ```
 
-Its trace records useful evidence such as the search scope, dataset snapshot, baseline configuration, and comparison rationale. It prints a Markdown report and a JSON snapshot with execution order, parallel batches, task metadata, dependencies, and trace events.
+Its trace records useful evidence such as the search scope, dataset snapshot, baseline configuration, and comparison rationale. It prints a Markdown report, a JSON snapshot, and a Mermaid flowchart.
+
+The full public surface and error behavior are listed in [docs/API.md](docs/API.md).
 
 ## Project Layout
 
@@ -71,6 +75,7 @@ moonflowgraph/
 |-- flowgraph_test.mbt   # core behavior tests
 |-- cmd/demo/            # runnable demo
 |-- docs/                # design and roadmap
+|-- CHANGELOG.md         # unreleased and versioned changes
 |-- README.zh.md         # Chinese documentation
 `-- PROJECT.md           # project memory and acceptance checklist
 ```
