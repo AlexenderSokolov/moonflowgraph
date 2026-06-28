@@ -73,6 +73,11 @@ fn main {
   trace.record(@moonflowgraph.TraceEvent::new(@moonflowgraph.TaskId::new("compare_metrics"), Note, "comparison criteria satisfied; report can cite both evidence branches", "t4"))
 
   println(graph.to_markdown(plan, trace))
+  println("--- MERMAID ---")
+  match graph.to_mermaid() {
+    Ok(mermaid) => println(mermaid)
+    Err(err) => println("failed to render Mermaid: \{err.message()}")
+  }
   println("--- JSON ---")
   println(graph.to_json(plan, trace))
 }
