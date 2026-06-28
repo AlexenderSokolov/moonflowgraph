@@ -272,3 +272,25 @@ test "markdown and json export include core fields" {
   debug_inspect(json.contains("research"), content="true")
   debug_inspect(json.contains("\"trace\""), content="true")
 }
+
+///|
+test "mermaid export includes nodes and dependencies" {
+  let graph = sample_graph()
+  guard graph.to_mermaid() is Ok(mermaid) else { fail("expected Mermaid") }
+  debug_inspect(mermaid.has_prefix("flowchart TD"), content="true")
+  debug_inspect(mermaid.contains("collect_papers: Collect papers"), content="true")
+  debug_inspect(mermaid.contains("task_0 --> task_2"), content="true")
+}
+
+///|
+test "mermaid export validates and escapes labels" {
+  let graph = FlowGraph::new()
+  let _ = graph.add_task(TaskNode::new("quoted", "Read \"notes\" & compare"))
+  guard graph.to_mermaid() is Ok(mermaid) else { fail("expected Mermaid") }
+  debug_inspect(mermaid.contains("&quot;notes&quot; &amp; compare"), content="true")
+
+  let invalid = FlowGraph::new()
+  let _ = invalid.add_task(TaskNode::new("a", "A"))
+  let _ = invalid.add_dependency(TaskId::new("a"), TaskId::new("missing"))
+  debug_inspect(invalid.to_mermaid() is Err(MissingDependencyEndpoint(_)), content="true")
+}

@@ -121,6 +121,28 @@ pub fn FlowGraph::to_json(self : FlowGraph, plan : ExecutionPlan, trace : Trace)
   out.to_string()
 }
 
+///| Render a validated task graph as a Mermaid flowchart.
+pub fn FlowGraph::to_mermaid(self : FlowGraph) -> Result[String, GraphError] {
+  match self.validate() {
+    Err(err) => Err(err)
+    Ok(_) => {
+      let tasks = self.tasks()
+      let out = StringBuilder()
+      out <+ "flowchart TD\n"
+      for i = 0; i < tasks.length(); i = i + 1 {
+        let label = escape_mermaid("\{tasks[i].id.value}: \{tasks[i].title}")
+        out <+ "  task_\{i}[\"\{label}\"]\n"
+      }
+      for dep in self.dependencies() {
+        let before = task_position(tasks, dep.before)
+        let after = task_position(tasks, dep.after)
+        out <+ "  task_\{before} --> task_\{after}\n"
+      }
+      Ok(out.to_string())
+    }
+  }
+}
+
 fn write_json_strings(out : StringBuilder, values : Array[String]) -> Unit {
   out <+ "["
   for i = 0; i < values.length(); i = i + 1 {
@@ -167,6 +189,29 @@ fn escape_json(s : String) -> String {
       '\n' => out <+ "\\n"
       '\r' => out <+ "\\r"
       '\t' => out <+ "\\t"
+      _ => out <+ "\{ch}"
+    }
+  }
+  out.to_string()
+}
+
+fn task_position(tasks : Array[TaskNode], id : TaskId) -> Int {
+  for i = 0; i < tasks.length(); i = i + 1 {
+    if tasks[i].id == id {
+      return i
+    }
+  }
+  -1
+}
+
+fn escape_mermaid(s : String) -> String {
+  let out = StringBuilder()
+  for ch in s {
+    match ch {
+      '&' => out <+ "&amp;"
+      '"' => out <+ "&quot;"
+      '\n' => out <+ " "
+      '\r' => continue
       _ => out <+ "\{ch}"
     }
   }
