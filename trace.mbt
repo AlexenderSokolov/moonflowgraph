@@ -47,6 +47,11 @@ pub fn Trace::events(self : Trace) -> Array[TraceEvent] {
   self.events
 }
 
+///| Return the number of recorded events.
+pub fn Trace::event_count(self : Trace) -> Int {
+  self.events.length()
+}
+
 ///| Return events for a single task id in append order.
 pub fn Trace::events_for(self : Trace, task_id : TaskId) -> Array[TraceEvent] {
   let out : Array[TraceEvent] = []
@@ -56,6 +61,18 @@ pub fn Trace::events_for(self : Trace, task_id : TaskId) -> Array[TraceEvent] {
     }
   }
   out
+}
+
+///| Return the most recently appended event for a task.
+pub fn Trace::latest_for(self : Trace, task_id : TaskId) -> TraceEvent? {
+  let mut index = self.events.length()
+  while index > 0 {
+    index = index - 1
+    if self.events[index].task_id == task_id {
+      return Some(self.events[index])
+    }
+  }
+  None
 }
 
 ///| Render a compact Markdown summary of trace events.

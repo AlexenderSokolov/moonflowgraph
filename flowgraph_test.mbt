@@ -240,6 +240,21 @@ test "trace filters events and renders summary" {
 }
 
 ///|
+test "trace returns count and latest task event" {
+  let trace = Trace::new()
+  trace.record(TraceEvent::new(TaskId::new("a"), Started, "start", "t1"))
+  trace.record(TraceEvent::new(TaskId::new("b"), Note, "side note", "t2"))
+  trace.record(TraceEvent::new(TaskId::new("a"), Completed, "done", "t3"))
+  debug_inspect(trace.event_count(), content="3")
+  guard trace.latest_for(TaskId::new("a")) is Some(latest) else {
+    fail("expected latest event")
+  }
+  debug_inspect(latest.message, content="\"done\"")
+  debug_inspect(latest.timestamp, content="\"t3\"")
+  debug_inspect(trace.latest_for(TaskId::new("missing")) is None, content="true")
+}
+
+///|
 test "markdown and json export include core fields" {
   let graph = sample_graph()
   guard graph.plan() is Ok(plan) else { fail("expected plan") }
