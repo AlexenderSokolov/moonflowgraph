@@ -101,6 +101,8 @@ pub fn TraceEventType::label(self : TraceEventType) -> String {
 pub fn GraphError::message(self : GraphError) -> String {
   match self {
     DuplicateTask(id) => "duplicate task: \{id.value}"
+    DuplicateDependency(dep) =>
+      "duplicate dependency: \{dep.before.value} -> \{dep.after.value}"
     MissingTask(id) => "missing task: \{id.value}"
     MissingDependencyEndpoint(dep) =>
       "dependency endpoint missing: \{dep.before.value} -> \{dep.after.value}"

@@ -39,6 +39,7 @@ pub(all) struct ExecutionPlan {
 ///| Graph errors retain the ids and edges needed for useful diagnostics.
 pub(all) enum GraphError {
   DuplicateTask(TaskId)
+  DuplicateDependency(Dependency)
   MissingTask(TaskId)
   MissingDependencyEndpoint(Dependency)
   CycleDetected(Array[TaskId])
@@ -127,13 +128,19 @@ pub fn FlowGraph::add_task(self : FlowGraph, node : TaskNode) -> Result[Unit, Gr
   Ok(())
 }
 
-///| Add a dependency edge. Endpoint existence is checked by `validate`.
+///| Add a dependency edge. Duplicate edges are rejected; endpoint existence is
+/// checked by `validate`.
 pub fn FlowGraph::add_dependency(
   self : FlowGraph,
   before : TaskId,
   after : TaskId,
 ) -> Result[Unit, GraphError] {
   let dep = { before, after }
+  for current in self.dependencies {
+    if current == dep {
+      return Err(DuplicateDependency(dep))
+    }
+  }
   self.dependencies.push(dep)
   Ok(())
 }

@@ -67,6 +67,23 @@ test "missing dependency endpoint fails validation" {
 }
 
 ///|
+test "duplicate dependency is rejected" {
+  let graph = FlowGraph::new()
+  let _ = graph.add_task(TaskNode::new("a", "A"))
+  let _ = graph.add_task(TaskNode::new("b", "B"))
+  let _ = graph.add_dependency(TaskId::new("a"), TaskId::new("b"))
+  let result = graph.add_dependency(TaskId::new("a"), TaskId::new("b"))
+  guard result is Err(err) else { fail("expected duplicate dependency") }
+  guard err is DuplicateDependency(dep) else {
+    fail("expected duplicate dependency error")
+  }
+  debug_inspect(dep.before.value, content="\"a\"")
+  debug_inspect(dep.after.value, content="\"b\"")
+  debug_inspect(graph.dependency_count(), content="1")
+  debug_inspect(err.message(), content="\"duplicate dependency: a -> b\"")
+}
+
+///|
 test "topological sort follows dependencies" {
   let graph = sample_graph()
   let result = graph.topological_sort()
