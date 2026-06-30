@@ -19,6 +19,10 @@
 - Markdown, JSON, and Mermaid export with tasks, dependencies, batches, and trace events.
 - Demo workflow for research/agent automation with real parallel batches.
 - English and Chinese documentation, design notes, project memory, and CI.
+- Detached snapshot accessors for graph and trace collections.
+- Checked task-status transitions and status-derived runnable tasks.
+- Checked exports that reject stale plans and unknown trace task ids.
+- Versioned JSON snapshots with structured status fields and parser-backed tests.
 
 ## v0.1 Acceptance Checklist
 
@@ -31,9 +35,9 @@
 
 ## v0.2
 
-- Stable JSON schema document and fixture snapshots.
 - Import/export round trips for workflow descriptions.
 - CLI command for reading a small workflow file.
+- Private graph/trace internals after a documented compatibility migration.
 - Optional graph indexes for faster lookup in larger DAGs.
 - Additional tests for larger disconnected graphs and error diagnostics.
 - Mooncakes package publishing polish.

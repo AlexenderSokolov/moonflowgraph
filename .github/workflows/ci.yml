@@ -13,7 +13,9 @@ jobs:
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-      - name: Check
+      - name: Format
+        run: moon fmt --check
+      - name: Typecheck
         run: moon check
       - name: Test
         run: moon test

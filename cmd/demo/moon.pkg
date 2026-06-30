@@ -1,5 +1,5 @@
 import {
-  "AlexenderSokolov/moonflowgraph"
+  "AlexenderSokolov/moonflowgraph",
 }
 
 options(

@@ -32,11 +32,26 @@ fn sample_graph() -> FlowGraph {
     .with_outputs(["report.md"])
     .with_tags(["report"]),
   )
-  let _ = graph.add_dependency(TaskId::new("collect_papers"), TaskId::new("extract_claims"))
-  let _ = graph.add_dependency(TaskId::new("prepare_dataset"), TaskId::new("run_baseline"))
-  let _ = graph.add_dependency(TaskId::new("extract_claims"), TaskId::new("compare_metrics"))
-  let _ = graph.add_dependency(TaskId::new("run_baseline"), TaskId::new("compare_metrics"))
-  let _ = graph.add_dependency(TaskId::new("compare_metrics"), TaskId::new("write_report"))
+  let _ = graph.add_dependency(
+    TaskId::new("collect_papers"),
+    TaskId::new("extract_claims"),
+  )
+  let _ = graph.add_dependency(
+    TaskId::new("prepare_dataset"),
+    TaskId::new("run_baseline"),
+  )
+  let _ = graph.add_dependency(
+    TaskId::new("extract_claims"),
+    TaskId::new("compare_metrics"),
+  )
+  let _ = graph.add_dependency(
+    TaskId::new("run_baseline"),
+    TaskId::new("compare_metrics"),
+  )
+  let _ = graph.add_dependency(
+    TaskId::new("compare_metrics"),
+    TaskId::new("write_report"),
+  )
   graph
 }
 
@@ -99,8 +114,14 @@ test "parallel batches group ready tasks" {
   let _ = graph.add_task(TaskNode::new("collect_papers", "Collect papers"))
   let _ = graph.add_task(TaskNode::new("collect_datasets", "Collect datasets"))
   let _ = graph.add_task(TaskNode::new("write_report", "Write report"))
-  let _ = graph.add_dependency(TaskId::new("collect_papers"), TaskId::new("write_report"))
-  let _ = graph.add_dependency(TaskId::new("collect_datasets"), TaskId::new("write_report"))
+  let _ = graph.add_dependency(
+    TaskId::new("collect_papers"),
+    TaskId::new("write_report"),
+  )
+  let _ = graph.add_dependency(
+    TaskId::new("collect_datasets"),
+    TaskId::new("write_report"),
+  )
   let result = graph.execution_batches()
   guard result is Ok(batches) else { fail("expected batches") }
   debug_inspect(batches.length(), content="2")
@@ -184,14 +205,22 @@ test "roots and leaves reject invalid graphs" {
   let graph = FlowGraph::new()
   let _ = graph.add_task(TaskNode::new("a", "A"))
   let _ = graph.add_dependency(TaskId::new("a"), TaskId::new("missing"))
-  debug_inspect(graph.roots() is Err(MissingDependencyEndpoint(_)), content="true")
-  debug_inspect(graph.leaves() is Err(MissingDependencyEndpoint(_)), content="true")
+  debug_inspect(
+    graph.roots() is Err(MissingDependencyEndpoint(_)),
+    content="true",
+  )
+  debug_inspect(
+    graph.leaves() is Err(MissingDependencyEndpoint(_)),
+    content="true",
+  )
 }
 
 ///|
 test "ready tasks identify parallel work" {
   let graph = sample_graph()
-  guard graph.ready_tasks([]) is Ok(first_ready) else { fail("expected ready tasks") }
+  guard graph.ready_tasks([]) is Ok(first_ready) else {
+    fail("expected ready tasks")
+  }
   debug_inspect(first_ready.length(), content="2")
   debug_inspect(first_ready[0].value, content="\"collect_papers\"")
   debug_inspect(first_ready[1].value, content="\"prepare_dataset\"")
@@ -210,7 +239,9 @@ test "disconnected dag starts with multiple ready tasks" {
   let _ = graph.add_task(TaskNode::new("b", "B"))
   let _ = graph.add_task(TaskNode::new("c", "C"))
   let _ = graph.add_dependency(TaskId::new("a"), TaskId::new("c"))
-  guard graph.execution_batches() is Ok(batches) else { fail("expected batches") }
+  guard graph.execution_batches() is Ok(batches) else {
+    fail("expected batches")
+  }
   debug_inspect(batches[0].length(), content="2")
   debug_inspect(batches[0][0].value, content="\"a\"")
   debug_inspect(batches[0][1].value, content="\"b\"")
@@ -251,7 +282,10 @@ test "trace returns count and latest task event" {
   }
   debug_inspect(latest.message, content="\"done\"")
   debug_inspect(latest.timestamp, content="\"t3\"")
-  debug_inspect(trace.latest_for(TaskId::new("missing")) is None, content="true")
+  debug_inspect(
+    trace.latest_for(TaskId::new("missing")) is None,
+    content="true",
+  )
 }
 
 ///|
@@ -259,7 +293,9 @@ test "markdown and json export include core fields" {
   let graph = sample_graph()
   guard graph.plan() is Ok(plan) else { fail("expected plan") }
   let trace = Trace::new()
-  trace.record(TraceEvent::new(TaskId::new("collect_papers"), Planned, "queued", "t0"))
+  trace.record(
+    TraceEvent::new(TaskId::new("collect_papers"), Planned, "queued", "t0"),
+  )
   let markdown = graph.to_markdown(plan, trace)
   let json = graph.to_json(plan, trace)
   debug_inspect(markdown.contains("collect_papers"), content="true")
@@ -271,6 +307,7 @@ test "markdown and json export include core fields" {
   debug_inspect(json.contains("paper_index.md"), content="true")
   debug_inspect(json.contains("research"), content="true")
   debug_inspect(json.contains("\"trace\""), content="true")
+  debug_inspect(json.contains("\"schema_version\""), content="false")
 }
 
 ///|
@@ -278,7 +315,10 @@ test "mermaid export includes nodes and dependencies" {
   let graph = sample_graph()
   guard graph.to_mermaid() is Ok(mermaid) else { fail("expected Mermaid") }
   debug_inspect(mermaid.has_prefix("flowchart TD"), content="true")
-  debug_inspect(mermaid.contains("collect_papers: Collect papers"), content="true")
+  debug_inspect(
+    mermaid.contains("collect_papers: Collect papers"),
+    content="true",
+  )
   debug_inspect(mermaid.contains("task_0 --> task_2"), content="true")
 }
 
@@ -287,10 +327,176 @@ test "mermaid export validates and escapes labels" {
   let graph = FlowGraph::new()
   let _ = graph.add_task(TaskNode::new("quoted", "Read \"notes\" & compare"))
   guard graph.to_mermaid() is Ok(mermaid) else { fail("expected Mermaid") }
-  debug_inspect(mermaid.contains("&quot;notes&quot; &amp; compare"), content="true")
+  debug_inspect(
+    mermaid.contains("&quot;notes&quot; &amp; compare"),
+    content="true",
+  )
 
   let invalid = FlowGraph::new()
   let _ = invalid.add_task(TaskNode::new("a", "A"))
   let _ = invalid.add_dependency(TaskId::new("a"), TaskId::new("missing"))
-  debug_inspect(invalid.to_mermaid() is Err(MissingDependencyEndpoint(_)), content="true")
+  debug_inspect(
+    invalid.to_mermaid() is Err(MissingDependencyEndpoint(_)),
+    content="true",
+  )
+}
+
+///|
+test "safe snapshots do not expose graph or trace arrays" {
+  let graph = sample_graph()
+  let tasks = graph.tasks_snapshot()
+  tasks[0].outputs.push("mutated.txt")
+  tasks.push(TaskNode::new("external", "External"))
+  debug_inspect(graph.task_count(), content="6")
+  guard graph.find_task(TaskId::new("collect_papers")) is Some(original) else {
+    fail("expected original task")
+  }
+  debug_inspect(original.outputs.length(), content="1")
+  original.outputs.push("also-mutated.txt")
+  guard graph.find_task(TaskId::new("collect_papers")) is Some(unchanged) else {
+    fail("expected unchanged task")
+  }
+  debug_inspect(unchanged.outputs.length(), content="1")
+
+  let dependencies = graph.dependencies_snapshot()
+  dependencies.push({
+    before: TaskId::new("external"),
+    after: TaskId::new("collect_papers"),
+  })
+  debug_inspect(graph.dependency_count(), content="5")
+
+  guard graph.plan() is Ok(plan) else { fail("expected plan") }
+  let plan_copy = plan.snapshot()
+  let _ = plan_copy.order.pop()
+  let _ = plan_copy.batches[0].pop()
+  debug_inspect(plan.order.length(), content="6")
+  debug_inspect(plan.batches[0].length(), content="2")
+
+  let trace = Trace::new()
+  trace.record(
+    TraceEvent::new(TaskId::new("collect_papers"), Planned, "queued", "t0"),
+  )
+  let events = trace.events_snapshot()
+  events.push(TraceEvent::new(TaskId::new("external"), Note, "local", "t1"))
+  debug_inspect(trace.event_count(), content="1")
+}
+
+///|
+test "adding a task detaches caller-owned metadata arrays" {
+  let graph = FlowGraph::new()
+  let outputs = ["result.json"]
+  let node = TaskNode::new("a", "A").with_outputs(outputs)
+  let _ = graph.add_task(node)
+  outputs.push("mutated.json")
+  guard graph.find_task(TaskId::new("a")) is Some(stored) else {
+    fail("expected stored task")
+  }
+  debug_inspect(stored.outputs.length(), content="1")
+}
+
+///|
+test "checked status transitions reject invalid jumps and allow retry" {
+  let graph = FlowGraph::new()
+  let _ = graph.add_task(TaskNode::new("a", "A"))
+  debug_inspect(
+    graph.transition_status(TaskId::new("a"), Succeeded)
+    is Err(InvalidStatusTransition(_, _, _)),
+    content="true",
+  )
+  debug_inspect(
+    graph.transition_status(TaskId::new("a"), Running) is Ok(_),
+    content="true",
+  )
+  debug_inspect(
+    graph.transition_status(TaskId::new("a"), Failed("temporary")) is Ok(_),
+    content="true",
+  )
+  debug_inspect(
+    graph.transition_status(TaskId::new("a"), Ready) is Ok(_),
+    content="true",
+  )
+  debug_inspect(
+    graph.transition_status(TaskId::new("missing"), Ready)
+    is Err(TransitionMissingTask(_)),
+    content="true",
+  )
+}
+
+///|
+test "runnable tasks use graph status and block failed predecessors" {
+  let graph = sample_graph()
+  guard graph.runnable_tasks() is Ok(first) else {
+    fail("expected runnable tasks")
+  }
+  debug_inspect(first.length(), content="2")
+  let _ = graph.update_status(TaskId::new("collect_papers"), Succeeded)
+  let _ = graph.update_status(
+    TaskId::new("prepare_dataset"),
+    Failed("missing data"),
+  )
+  guard graph.runnable_tasks() is Ok(next) else {
+    fail("expected runnable tasks")
+  }
+  debug_inspect(next.length(), content="1")
+  debug_inspect(next[0].value, content="\"extract_claims\"")
+}
+
+///|
+test "snapshot validation rejects stale plans and unknown trace tasks" {
+  let graph = sample_graph()
+  guard graph.plan() is Ok(plan) else { fail("expected plan") }
+  let trace = Trace::new()
+  trace.record(TraceEvent::new(TaskId::new("missing"), Note, "orphan", "t0"))
+  debug_inspect(
+    graph.validate_trace(trace) is Err(UnknownTraceTask(_)),
+    content="true",
+  )
+  let _ = graph.add_task(TaskNode::new("new_task", "New task"))
+  debug_inspect(
+    graph.validate_plan(plan) is Err(StaleExecutionPlan),
+    content="true",
+  )
+  debug_inspect(
+    graph.to_json_checked(plan, trace) is Err(StaleExecutionPlan),
+    content="true",
+  )
+}
+
+///|
+test "json snapshot is versioned structured and valid for control characters" {
+  let graph = FlowGraph::new()
+  let control = '\u{0001}'
+  let _ = graph.add_task(
+    TaskNode::new("a", "A").with_status(Failed("bad \{control} value")),
+  )
+  let trace = Trace::new()
+  guard graph.snapshot_json(trace) is Ok(json) else {
+    fail("expected JSON snapshot")
+  }
+  debug_inspect(@json.valid(json), content="true")
+  debug_inspect(json.contains("\"schema_version\": 1"), content="true")
+  debug_inspect(json.contains("\"status_kind\":\"failed\""), content="true")
+  debug_inspect(
+    json.contains("\"status_reason\":\"bad \\u0001 value\""),
+    content="true",
+  )
+}
+
+///|
+test "empty graph produces a valid checked snapshot" {
+  let graph = FlowGraph::new()
+  let trace = Trace::new()
+  guard graph.snapshot_json(trace) is Ok(json) else {
+    fail("expected empty snapshot")
+  }
+  debug_inspect(@json.valid(json), content="true")
+  let expected = "{\n" +
+    "  \"schema_version\": 1,\n" +
+    "  \"order\": [],\n" +
+    "  \"batches\": [],\n" +
+    "  \"tasks\": [],\n" +
+    "  \"dependencies\": [],\n" +
+    "  \"trace\": []\n" +
+    "}\n"
+  debug_inspect(json == expected, content="true")
 }

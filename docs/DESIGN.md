@@ -40,6 +40,8 @@ MoonFlowGraph does not own:
 
 The first implementation uses arrays rather than a map-heavy internal model. The expected graphs are small research workflows, and arrays keep mutation and traversal behavior straightforward while the public API settles. A later version can add indexes without changing callers.
 
+The published 0.1 surface exposed those arrays through `pub(all)` types and compatibility accessors. Detached `*_snapshot()` accessors now provide a safe path without breaking 0.1 callers. Making graph internals private is deliberately deferred to 0.2 because it changes the public API.
+
 ## Planning Model
 
 The planner exposes two complementary views:
@@ -50,6 +52,8 @@ The planner exposes two complementary views:
 The demo uses two independent starting tasks (`collect_papers` and `prepare_dataset`). Later batches converge into `compare_metrics`, mirroring a common research workflow: literature-derived criteria and experimental measurements have to meet before a report can make a defensible comparison.
 
 `ready_tasks(done)` is a smaller incremental primitive for callers that do their own scheduling. Given a set of completed task ids, it returns tasks whose predecessors are all complete and that are not already done.
+
+`runnable_tasks()` is the state-aware counterpart. It only returns pending or ready tasks whose predecessors are `Succeeded`; failed and skipped predecessors block downstream work. Checked execution uses `transition_status`, while unrestricted `update_status` is retained for importing or replaying historical state.
 
 ## Error Model
 
@@ -73,7 +77,9 @@ Markdown export is meant for a person picking up or reviewing a run. JSON export
 - dependency edges;
 - trace events.
 
-The current JSON writer has no external dependency. It escapes common JSON string characters and keeps the schema small enough to cover with tests. If the package later needs round-trip import or a versioned schema, this should move to a structured JSON library.
+The current JSON writer has no external dependency. Checked snapshots use schema version 1, documented as a JSON Schema; all control characters are escaped, and tests parse generated output with MoonBit's core JSON parser. The legacy `to_json` method preserves the unversioned 0.1 shape. Version 1 keeps the display-oriented `status` field and adds `status_kind` plus `status_reason` for future round trips.
+
+Checked export treats the graph, plan, and trace as one consistency boundary. It rejects plans generated before a structural graph change and events that refer to unknown tasks. Raw export remains available for 0.1 compatibility but should not be used by new callers.
 
 ## Origin In Research Automation Work
 

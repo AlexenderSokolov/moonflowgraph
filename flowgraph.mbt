@@ -1,9 +1,11 @@
-///| Task identifier used by the public graph API.
+///|
+/// Task identifier used by the public graph API.
 pub(all) struct TaskId {
   value : String
 } derive(Eq, Debug)
 
-///| Execution status tracked for each task node.
+///|
+/// Execution status tracked for each task node.
 pub(all) enum TaskStatus {
   Pending
   Ready
@@ -13,7 +15,8 @@ pub(all) enum TaskStatus {
   Skipped(String)
 } derive(Eq, Debug)
 
-///| A node in a reproducible research or agent workflow.
+///|
+/// A node in a reproducible research or agent workflow.
 pub(all) struct TaskNode {
   id : TaskId
   title : String
@@ -24,19 +27,22 @@ pub(all) struct TaskNode {
   status : TaskStatus
 } derive(Eq, Debug)
 
-///| Directed dependency edge: `before` must finish before `after`.
+///|
+/// Directed dependency edge: `before` must finish before `after`.
 pub(all) struct Dependency {
   before : TaskId
   after : TaskId
 } derive(Eq, Debug)
 
-///| A validated execution plan with serial order and parallel-ready batches.
+///|
+/// A validated execution plan with serial order and parallel-ready batches.
 pub(all) struct ExecutionPlan {
   order : Array[TaskId]
   batches : Array[Array[TaskId]]
 } derive(Eq, Debug)
 
-///| Graph errors retain the ids and edges needed for useful diagnostics.
+///|
+/// Graph errors retain the ids and edges needed for useful diagnostics.
 pub(all) enum GraphError {
   DuplicateTask(TaskId)
   DuplicateDependency(Dependency)
@@ -45,18 +51,36 @@ pub(all) enum GraphError {
   CycleDetected(Array[TaskId])
 } derive(Eq, Debug)
 
-///| Mutable workflow graph.
+///|
+/// Errors raised by checked task-status transitions.
+pub(all) enum StatusTransitionError {
+  TransitionMissingTask(TaskId)
+  InvalidStatusTransition(TaskId, TaskStatus, TaskStatus)
+} derive(Eq, Debug)
+
+///|
+/// Errors raised when a plan or trace no longer matches its graph.
+pub(all) enum SnapshotError {
+  SnapshotGraphError(GraphError)
+  StaleExecutionPlan
+  UnknownTraceTask(TaskId)
+} derive(Eq, Debug)
+
+///|
+/// Mutable workflow graph.
 pub(all) struct FlowGraph {
   mut tasks : Array[TaskNode]
   mut dependencies : Array[Dependency]
 } derive(Debug)
 
-///| Build a task id.
+///|
+/// Build a task id.
 pub fn TaskId::new(value : String) -> TaskId {
   { value, }
 }
 
-///| Build a basic pending task.
+///|
+/// Build a basic pending task.
 pub fn TaskNode::new(id : String, title : String) -> TaskNode {
   {
     id: TaskId::new(id),
@@ -69,57 +93,120 @@ pub fn TaskNode::new(id : String, title : String) -> TaskNode {
   }
 }
 
-///| Add a short description.
-pub fn TaskNode::with_description(self : TaskNode, description : String) -> TaskNode {
-  { ..self, description }
+///|
+/// Add a short description.
+pub fn TaskNode::with_description(
+  self : TaskNode,
+  description : String,
+) -> TaskNode {
+  { ..self, description, }
 }
 
-///| Add input labels or artifacts.
-pub fn TaskNode::with_inputs(self : TaskNode, inputs : Array[String]) -> TaskNode {
-  { ..self, inputs }
+///|
+/// Add input labels or artifacts.
+pub fn TaskNode::with_inputs(
+  self : TaskNode,
+  inputs : Array[String],
+) -> TaskNode {
+  { ..self, inputs, }
 }
 
-///| Add output labels or artifacts.
-pub fn TaskNode::with_outputs(self : TaskNode, outputs : Array[String]) -> TaskNode {
-  { ..self, outputs }
+///|
+/// Add output labels or artifacts.
+pub fn TaskNode::with_outputs(
+  self : TaskNode,
+  outputs : Array[String],
+) -> TaskNode {
+  { ..self, outputs, }
 }
 
-///| Add topic tags.
+///|
+/// Add topic tags.
 pub fn TaskNode::with_tags(self : TaskNode, tags : Array[String]) -> TaskNode {
-  { ..self, tags }
+  { ..self, tags, }
 }
 
-///| Override status.
+///|
+/// Override status.
 pub fn TaskNode::with_status(self : TaskNode, status : TaskStatus) -> TaskNode {
-  { ..self, status }
+  { ..self, status, }
 }
 
-///| Create an empty flow graph.
+///|
+/// Create an empty flow graph.
 pub fn FlowGraph::new() -> FlowGraph {
   { tasks: [], dependencies: [] }
 }
 
-///| Return a snapshot of task nodes.
+///|
+/// Return the backing array of task nodes.
+///
+/// This compatibility API returns the backing array. New code should prefer
+/// `tasks_snapshot`, which also copies nested metadata arrays.
 pub fn FlowGraph::tasks(self : FlowGraph) -> Array[TaskNode] {
   self.tasks
 }
 
-///| Return a snapshot of dependency edges.
+///|
+/// Return the backing array of dependency edges.
+///
+/// This compatibility API returns the backing array. New code should prefer
+/// `dependencies_snapshot`.
 pub fn FlowGraph::dependencies(self : FlowGraph) -> Array[Dependency] {
   self.dependencies
 }
 
-///| Return the number of task nodes.
+///|
+/// Return a detached copy of task nodes and their metadata arrays.
+pub fn FlowGraph::tasks_snapshot(self : FlowGraph) -> Array[TaskNode] {
+  let out : Array[TaskNode] = []
+  for task in self.tasks {
+    out.push(task.snapshot())
+  }
+  out
+}
+
+///|
+/// Return a detached copy of dependency edges.
+pub fn FlowGraph::dependencies_snapshot(self : FlowGraph) -> Array[Dependency] {
+  self.dependencies.copy()
+}
+
+///|
+/// Return a detached copy of a task node and its metadata arrays.
+pub fn TaskNode::snapshot(self : TaskNode) -> TaskNode {
+  {
+    ..self,
+    inputs: self.inputs.copy(),
+    outputs: self.outputs.copy(),
+    tags: self.tags.copy(),
+  }
+}
+
+///|
+/// Return a detached copy of an execution plan, including nested batches.
+pub fn ExecutionPlan::snapshot(self : ExecutionPlan) -> ExecutionPlan {
+  let batches : Array[Array[TaskId]] = []
+  for batch in self.batches {
+    batches.push(batch.copy())
+  }
+  { order: self.order.copy(), batches }
+}
+
+///|
+/// Return the number of task nodes.
 pub fn FlowGraph::task_count(self : FlowGraph) -> Int {
   self.tasks.length()
 }
 
-///| Return the number of dependency edges.
+///|
+/// Return the number of dependency edges.
 pub fn FlowGraph::dependency_count(self : FlowGraph) -> Int {
   self.dependencies.length()
 }
 
-///| Return tasks with no incoming dependency edges.
+///|
+/// Return tasks with no incoming dependency edges.
 pub fn FlowGraph::roots(self : FlowGraph) -> Result[Array[TaskId], GraphError] {
   match self.validate() {
     Err(err) => Err(err)
@@ -141,7 +228,8 @@ pub fn FlowGraph::roots(self : FlowGraph) -> Result[Array[TaskId], GraphError] {
   }
 }
 
-///| Return tasks with no outgoing dependency edges.
+///|
+/// Return tasks with no outgoing dependency edges.
 pub fn FlowGraph::leaves(self : FlowGraph) -> Result[Array[TaskId], GraphError] {
   match self.validate() {
     Err(err) => Err(err)
@@ -157,16 +245,21 @@ pub fn FlowGraph::leaves(self : FlowGraph) -> Result[Array[TaskId], GraphError] 
   }
 }
 
-///| Add a task node. Duplicate ids return `DuplicateTask`.
-pub fn FlowGraph::add_task(self : FlowGraph, node : TaskNode) -> Result[Unit, GraphError] {
+///|
+/// Add a task node. Duplicate ids return `DuplicateTask`.
+pub fn FlowGraph::add_task(
+  self : FlowGraph,
+  node : TaskNode,
+) -> Result[Unit, GraphError] {
   if self.contains_task(node.id) {
     return Err(DuplicateTask(node.id))
   }
-  self.tasks.push(node)
+  self.tasks.push(node.snapshot())
   Ok(())
 }
 
-///| Add a dependency edge. Duplicate edges are rejected; endpoint existence is
+///|
+/// Add a dependency edge. Duplicate edges are rejected; endpoint existence is
 /// checked by `validate`.
 pub fn FlowGraph::add_dependency(
   self : FlowGraph,
@@ -183,7 +276,8 @@ pub fn FlowGraph::add_dependency(
   Ok(())
 }
 
-///| Update the status of an existing task.
+///|
+/// Update the status of an existing task.
 pub fn FlowGraph::update_status(
   self : FlowGraph,
   id : TaskId,
@@ -191,15 +285,60 @@ pub fn FlowGraph::update_status(
 ) -> Result[Unit, GraphError] {
   for i = 0; i < self.tasks.length(); i = i + 1 {
     if self.tasks[i].id == id {
-      self.tasks[i] = { ..self.tasks[i], status }
+      self.tasks[i] = { ..self.tasks[i], status, }
       return Ok(())
     }
   }
   Err(MissingTask(id))
 }
 
-///| Return immediate predecessor ids for a task.
-pub fn FlowGraph::predecessors(self : FlowGraph, id : TaskId) -> Result[Array[TaskId], GraphError] {
+///|
+/// Update a task through the documented execution-state machine.
+///
+/// `update_status` remains available for replay and compatibility. Normal
+/// execution should prefer this checked method.
+pub fn FlowGraph::transition_status(
+  self : FlowGraph,
+  id : TaskId,
+  status : TaskStatus,
+) -> Result[Unit, StatusTransitionError] {
+  for i = 0; i < self.tasks.length(); i = i + 1 {
+    if self.tasks[i].id == id {
+      let current = self.tasks[i].status
+      if !current.can_transition_to(status) {
+        return Err(InvalidStatusTransition(id, current, status))
+      }
+      self.tasks[i] = { ..self.tasks[i], status, }
+      return Ok(())
+    }
+  }
+  Err(TransitionMissingTask(id))
+}
+
+///|
+/// Return whether a status transition is valid for normal execution.
+pub fn TaskStatus::can_transition_to(
+  self : TaskStatus,
+  next : TaskStatus,
+) -> Bool {
+  if self == next {
+    return true
+  }
+  match (self, next) {
+    (Pending, Ready) | (Pending, Running) | (Pending, Skipped(_)) => true
+    (Ready, Running) | (Ready, Skipped(_)) => true
+    (Running, Succeeded) | (Running, Failed(_)) => true
+    (Failed(_), Ready) => true
+    _ => false
+  }
+}
+
+///|
+/// Return immediate predecessor ids for a task.
+pub fn FlowGraph::predecessors(
+  self : FlowGraph,
+  id : TaskId,
+) -> Result[Array[TaskId], GraphError] {
   if !self.contains_task(id) {
     return Err(MissingTask(id))
   }
@@ -212,16 +351,24 @@ pub fn FlowGraph::predecessors(self : FlowGraph, id : TaskId) -> Result[Array[Ta
   Ok(out)
 }
 
-///| Return immediate successor ids for a task.
-pub fn FlowGraph::successors(self : FlowGraph, id : TaskId) -> Result[Array[TaskId], GraphError] {
+///|
+/// Return immediate successor ids for a task.
+pub fn FlowGraph::successors(
+  self : FlowGraph,
+  id : TaskId,
+) -> Result[Array[TaskId], GraphError] {
   if !self.contains_task(id) {
     return Err(MissingTask(id))
   }
   Ok(self.successor_ids(id))
 }
 
-///| Return tasks whose predecessors are all in `done`.
-pub fn FlowGraph::ready_tasks(self : FlowGraph, done : Array[TaskId]) -> Result[Array[TaskId], GraphError] {
+///|
+/// Return tasks whose predecessors are all in `done`.
+pub fn FlowGraph::ready_tasks(
+  self : FlowGraph,
+  done : Array[TaskId],
+) -> Result[Array[TaskId], GraphError] {
   match self.validate() {
     Err(err) => Err(err)
     Ok(_) => {
@@ -232,7 +379,8 @@ pub fn FlowGraph::ready_tasks(self : FlowGraph, done : Array[TaskId]) -> Result[
       }
       let ready : Array[TaskId] = []
       for task in self.tasks {
-        if !contains_id(done, task.id) && self.all_predecessors_consumed(task.id, done) {
+        if !contains_id(done, task.id) &&
+          self.all_predecessors_consumed(task.id, done) {
           ready.push(task.id)
         }
       }
@@ -241,7 +389,30 @@ pub fn FlowGraph::ready_tasks(self : FlowGraph, done : Array[TaskId]) -> Result[
   }
 }
 
-///| Validate all edge endpoints and cycle freedom.
+///|
+/// Return pending or ready tasks whose predecessors have succeeded.
+///
+/// Failed or skipped predecessors block their successors. Callers that manage
+/// completion separately should continue using `ready_tasks(done)`.
+pub fn FlowGraph::runnable_tasks(
+  self : FlowGraph,
+) -> Result[Array[TaskId], GraphError] {
+  match self.validate() {
+    Err(err) => Err(err)
+    Ok(_) => {
+      let runnable : Array[TaskId] = []
+      for task in self.tasks {
+        if task.status.is_runnable() && self.all_predecessors_succeeded(task.id) {
+          runnable.push(task.id)
+        }
+      }
+      Ok(runnable)
+    }
+  }
+}
+
+///|
+/// Validate all edge endpoints and cycle freedom.
 pub fn FlowGraph::validate(self : FlowGraph) -> Result[Unit, GraphError] {
   for dep in self.dependencies {
     if !self.contains_task(dep.before) || !self.contains_task(dep.after) {
@@ -254,8 +425,11 @@ pub fn FlowGraph::validate(self : FlowGraph) -> Result[Unit, GraphError] {
   }
 }
 
-///| Return a topological execution order.
-pub fn FlowGraph::topological_sort(self : FlowGraph) -> Result[Array[TaskId], GraphError] {
+///|
+/// Return a topological execution order.
+pub fn FlowGraph::topological_sort(
+  self : FlowGraph,
+) -> Result[Array[TaskId], GraphError] {
   match self.validate() {
     Err(err) => Err(err)
     Ok(_) => {
@@ -264,7 +438,8 @@ pub fn FlowGraph::topological_sort(self : FlowGraph) -> Result[Array[TaskId], Gr
       while order.length() < self.tasks.length() {
         let mut progressed = false
         for task in self.tasks {
-          if !contains_id(order, task.id) && self.all_predecessors_consumed(task.id, consumed) {
+          if !contains_id(order, task.id) &&
+            self.all_predecessors_consumed(task.id, consumed) {
             order.push(task.id)
             consumed.push(task.id)
             progressed = true
@@ -279,8 +454,11 @@ pub fn FlowGraph::topological_sort(self : FlowGraph) -> Result[Array[TaskId], Gr
   }
 }
 
-///| Return parallel-ready batches. Tasks in the same batch have no dependencies between them.
-pub fn FlowGraph::execution_batches(self : FlowGraph) -> Result[Array[Array[TaskId]], GraphError] {
+///|
+/// Return parallel-ready batches. Tasks in the same batch have no dependencies between them.
+pub fn FlowGraph::execution_batches(
+  self : FlowGraph,
+) -> Result[Array[Array[TaskId]], GraphError] {
   match self.validate() {
     Err(err) => Err(err)
     Ok(_) => {
@@ -289,7 +467,8 @@ pub fn FlowGraph::execution_batches(self : FlowGraph) -> Result[Array[Array[Task
       while done.length() < self.tasks.length() {
         let batch : Array[TaskId] = []
         for task in self.tasks {
-          if !contains_id(done, task.id) && self.all_predecessors_consumed(task.id, done) {
+          if !contains_id(done, task.id) &&
+            self.all_predecessors_consumed(task.id, done) {
             batch.push(task.id)
           }
         }
@@ -306,7 +485,8 @@ pub fn FlowGraph::execution_batches(self : FlowGraph) -> Result[Array[Array[Task
   }
 }
 
-///| Create a full execution plan.
+///|
+/// Create a full execution plan.
 pub fn FlowGraph::plan(self : FlowGraph) -> Result[ExecutionPlan, GraphError] {
   match self.topological_sort() {
     Err(err) => Err(err)
@@ -318,20 +498,72 @@ pub fn FlowGraph::plan(self : FlowGraph) -> Result[ExecutionPlan, GraphError] {
   }
 }
 
-///| Find a task by id.
+///|
+/// Check that a plan still exactly matches the graph's deterministic plan.
+pub fn FlowGraph::validate_plan(
+  self : FlowGraph,
+  plan : ExecutionPlan,
+) -> Result[Unit, SnapshotError] {
+  match self.plan() {
+    Err(err) => Err(SnapshotGraphError(err))
+    Ok(expected) =>
+      if expected == plan {
+        Ok(())
+      } else {
+        Err(StaleExecutionPlan)
+      }
+  }
+}
+
+///|
+/// Check that every trace event refers to a task in this graph.
+pub fn FlowGraph::validate_trace(
+  self : FlowGraph,
+  trace : Trace,
+) -> Result[Unit, SnapshotError] {
+  for event in trace.events {
+    if !self.contains_task(event.task_id) {
+      return Err(UnknownTraceTask(event.task_id))
+    }
+  }
+  Ok(())
+}
+
+///|
+/// Check graph validity, plan freshness, and trace task references together.
+pub fn FlowGraph::validate_snapshot(
+  self : FlowGraph,
+  plan : ExecutionPlan,
+  trace : Trace,
+) -> Result[Unit, SnapshotError] {
+  match self.validate_plan(plan) {
+    Err(err) => Err(err)
+    Ok(_) => self.validate_trace(trace)
+  }
+}
+
+///|
+/// Find a task by id.
 pub fn FlowGraph::find_task(self : FlowGraph, id : TaskId) -> TaskNode? {
   for task in self.tasks {
     if task.id == id {
-      return Some(task)
+      return Some(task.snapshot())
     }
   }
   None
 }
 
+///|
 fn FlowGraph::contains_task(self : FlowGraph, id : TaskId) -> Bool {
-  self.find_task(id) is Some(_)
+  for task in self.tasks {
+    if task.id == id {
+      return true
+    }
+  }
+  false
 }
 
+///|
 fn FlowGraph::all_predecessors_consumed(
   self : FlowGraph,
   id : TaskId,
@@ -345,6 +577,28 @@ fn FlowGraph::all_predecessors_consumed(
   true
 }
 
+///|
+fn FlowGraph::all_predecessors_succeeded(self : FlowGraph, id : TaskId) -> Bool {
+  for dep in self.dependencies {
+    if dep.after == id {
+      match self.find_task(dep.before) {
+        Some(task) => if task.status != Succeeded { return false }
+        None => return false
+      }
+    }
+  }
+  true
+}
+
+///|
+fn TaskStatus::is_runnable(self : TaskStatus) -> Bool {
+  match self {
+    Pending | Ready => true
+    _ => false
+  }
+}
+
+///|
 fn FlowGraph::successor_ids(self : FlowGraph, id : TaskId) -> Array[TaskId] {
   let out : Array[TaskId] = []
   for dep in self.dependencies {
@@ -355,6 +609,7 @@ fn FlowGraph::successor_ids(self : FlowGraph, id : TaskId) -> Array[TaskId] {
   out
 }
 
+///|
 fn FlowGraph::find_cycle(self : FlowGraph) -> Array[TaskId]? {
   let visiting : Array[TaskId] = []
   let visited : Array[TaskId] = []
@@ -367,6 +622,7 @@ fn FlowGraph::find_cycle(self : FlowGraph) -> Array[TaskId]? {
   None
 }
 
+///|
 fn FlowGraph::visit_for_cycle(
   self : FlowGraph,
   id : TaskId,
@@ -391,6 +647,7 @@ fn FlowGraph::visit_for_cycle(
   None
 }
 
+///|
 fn contains_id(ids : Array[TaskId], id : TaskId) -> Bool {
   for current in ids {
     if current == id {
@@ -400,6 +657,7 @@ fn contains_id(ids : Array[TaskId], id : TaskId) -> Bool {
   false
 }
 
+///|
 fn cycle_suffix(ids : Array[TaskId], repeated : TaskId) -> Array[TaskId] {
   let out : Array[TaskId] = []
   let mut found = false

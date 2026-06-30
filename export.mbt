@@ -1,5 +1,38 @@
-///| Render a graph, plan, and trace as a Markdown execution report.
-pub fn FlowGraph::to_markdown(self : FlowGraph, plan : ExecutionPlan, trace : Trace) -> String {
+///|
+/// Validate a supplied plan and trace before rendering Markdown.
+pub fn FlowGraph::to_markdown_checked(
+  self : FlowGraph,
+  plan : ExecutionPlan,
+  trace : Trace,
+) -> Result[String, SnapshotError] {
+  match self.validate_snapshot(plan, trace) {
+    Err(err) => Err(err)
+    Ok(_) => Ok(self.to_markdown(plan, trace))
+  }
+}
+
+///|
+/// Build a fresh plan, validate trace references, and render Markdown.
+pub fn FlowGraph::snapshot_markdown(
+  self : FlowGraph,
+  trace : Trace,
+) -> Result[String, SnapshotError] {
+  match self.plan() {
+    Err(err) => Err(SnapshotGraphError(err))
+    Ok(plan) => self.to_markdown_checked(plan, trace)
+  }
+}
+
+///|
+/// Render a graph, plan, and trace as a Markdown execution report.
+///
+/// This compatibility API trusts the supplied plan. New code should prefer
+/// `to_markdown_checked` or `snapshot_markdown`.
+pub fn FlowGraph::to_markdown(
+  self : FlowGraph,
+  plan : ExecutionPlan,
+  trace : Trace,
+) -> String {
   let out = StringBuilder()
   out <+ "# MoonFlowGraph Report\n\n"
   out <+ "## Execution Order\n\n"
@@ -35,17 +68,63 @@ pub fn FlowGraph::to_markdown(self : FlowGraph, plan : ExecutionPlan, trace : Tr
   out.to_string()
 }
 
-///| Render a compact JSON string for tooling or snapshot artifacts.
-pub fn FlowGraph::to_json(self : FlowGraph, plan : ExecutionPlan, trace : Trace) -> String {
+///|
+/// Validate a supplied plan and trace before rendering JSON.
+pub fn FlowGraph::to_json_checked(
+  self : FlowGraph,
+  plan : ExecutionPlan,
+  trace : Trace,
+) -> Result[String, SnapshotError] {
+  match self.validate_snapshot(plan, trace) {
+    Err(err) => Err(err)
+    Ok(_) => Ok(self.render_json(plan, trace, versioned=true))
+  }
+}
+
+///|
+/// Build a fresh plan, validate trace references, and render JSON.
+pub fn FlowGraph::snapshot_json(
+  self : FlowGraph,
+  trace : Trace,
+) -> Result[String, SnapshotError] {
+  match self.plan() {
+    Err(err) => Err(SnapshotGraphError(err))
+    Ok(plan) => self.to_json_checked(plan, trace)
+  }
+}
+
+///|
+/// Render a compact JSON string for tooling or snapshot artifacts.
+///
+/// This compatibility API trusts the supplied plan. New code should prefer
+/// `to_json_checked` or `snapshot_json`.
+pub fn FlowGraph::to_json(
+  self : FlowGraph,
+  plan : ExecutionPlan,
+  trace : Trace,
+) -> String {
+  self.render_json(plan, trace, versioned=false)
+}
+
+///|
+fn FlowGraph::render_json(
+  self : FlowGraph,
+  plan : ExecutionPlan,
+  trace : Trace,
+  versioned~ : Bool,
+) -> String {
   let out = StringBuilder()
   out <+ "{\n"
+  if versioned {
+    out <+ "  \"schema_version\": 1,\n"
+  }
   out <+ "  \"order\": ["
   for i = 0; i < plan.order.length(); i = i + 1 {
     if i > 0 {
       out <+ ", "
     }
-      let id = escape_json(plan.order[i].value)
-      out <+ "\"\{id}\""
+    let id = escape_json(plan.order[i].value)
+    out <+ "\"\{id}\""
   }
   out <+ "],\n"
   out <+ "  \"batches\": ["
@@ -75,10 +154,23 @@ pub fn FlowGraph::to_json(self : FlowGraph, plan : ExecutionPlan, trace : Trace)
     let title = escape_json(task.title)
     let description = escape_json(task.description)
     let status = escape_json(task.status.label())
+    let status_kind = escape_json(task.status.kind())
     out <+ "\"id\":\"\{id}\","
     out <+ "\"title\":\"\{title}\","
     out <+ "\"description\":\"\{description}\","
     out <+ "\"status\":\"\{status}\","
+    if versioned {
+      out <+ "\"status_kind\":\"\{status_kind}\","
+      out <+ "\"status_reason\":"
+      match task.status.reason() {
+        Some(reason) => {
+          let escaped_reason = escape_json(reason)
+          out <+ "\"\{escaped_reason}\""
+        }
+        None => out <+ "null"
+      }
+      out <+ ","
+    }
     out <+ "\"inputs\":"
     write_json_strings(out, task.inputs)
     out <+ ",\"outputs\":"
@@ -121,7 +213,8 @@ pub fn FlowGraph::to_json(self : FlowGraph, plan : ExecutionPlan, trace : Trace)
   out.to_string()
 }
 
-///| Render a validated task graph as a Mermaid flowchart.
+///|
+/// Render a validated task graph as a Mermaid flowchart.
 pub fn FlowGraph::to_mermaid(self : FlowGraph) -> Result[String, GraphError] {
   match self.validate() {
     Err(err) => Err(err)
@@ -143,6 +236,7 @@ pub fn FlowGraph::to_mermaid(self : FlowGraph) -> Result[String, GraphError] {
   }
 }
 
+///|
 fn write_json_strings(out : StringBuilder, values : Array[String]) -> Unit {
   out <+ "["
   for i = 0; i < values.length(); i = i + 1 {
@@ -155,6 +249,7 @@ fn write_json_strings(out : StringBuilder, values : Array[String]) -> Unit {
   out <+ "]"
 }
 
+///|
 fn join_ids(ids : Array[TaskId], sep : String) -> String {
   let out = StringBuilder()
   for i = 0; i < ids.length(); i = i + 1 {
@@ -166,6 +261,7 @@ fn join_ids(ids : Array[TaskId], sep : String) -> String {
   out.to_string()
 }
 
+///|
 fn join_strings(items : Array[String], sep : String) -> String {
   if items.is_empty() {
     return "-"
@@ -180,6 +276,7 @@ fn join_strings(items : Array[String], sep : String) -> String {
   out.to_string()
 }
 
+///|
 fn escape_json(s : String) -> String {
   let out = StringBuilder()
   for ch in s {
@@ -189,12 +286,45 @@ fn escape_json(s : String) -> String {
       '\n' => out <+ "\\n"
       '\r' => out <+ "\\r"
       '\t' => out <+ "\\t"
-      _ => out <+ "\{ch}"
+      _ => {
+        let code = ch.to_int()
+        if code < 0x20 {
+          out <+ "\\u00"
+          out.write_string(hex_digit(code / 16))
+          out.write_string(hex_digit(code % 16))
+        } else {
+          out <+ "\{ch}"
+        }
+      }
     }
   }
   out.to_string()
 }
 
+///|
+fn hex_digit(value : Int) -> String {
+  match value {
+    0 => "0"
+    1 => "1"
+    2 => "2"
+    3 => "3"
+    4 => "4"
+    5 => "5"
+    6 => "6"
+    7 => "7"
+    8 => "8"
+    9 => "9"
+    10 => "a"
+    11 => "b"
+    12 => "c"
+    13 => "d"
+    14 => "e"
+    15 => "f"
+    _ => abort("hex digit out of range")
+  }
+}
+
+///|
 fn task_position(tasks : Array[TaskNode], id : TaskId) -> Int {
   for i = 0; i < tasks.length(); i = i + 1 {
     if tasks[i].id == id {
@@ -204,6 +334,7 @@ fn task_position(tasks : Array[TaskNode], id : TaskId) -> Int {
   -1
 }
 
+///|
 fn escape_mermaid(s : String) -> String {
   let out = StringBuilder()
   for ch in s {

@@ -16,10 +16,12 @@ Chinese documentation is available in [README.zh.md](README.zh.md).
 - Detects cycles and returns readable paths.
 - Produces topological order and parallel-ready execution batches.
 - Queries roots, leaves, predecessors, successors, ready tasks, and graph size.
-- Updates task status during a run or replay.
+- Provides checked task-status transitions plus an unrestricted replay API.
+- Returns detached graph and trace snapshots for safe caller-side inspection.
 - Records provenance events in append order.
 - Filters trace events by task and returns the latest event for a task.
-- Exports Markdown reports, JSON snapshots, and Mermaid flowcharts.
+- Rejects stale plans and unknown trace task ids during checked export.
+- Exports Markdown reports, versioned JSON snapshots, and Mermaid flowcharts.
 
 ## What It Deliberately Leaves Out
 
@@ -33,6 +35,7 @@ Those concerns belong to an upper-level runtime. Keeping them outside this packa
 ## Quick Start
 
 ```bash
+moon fmt --check
 moon check
 moon test
 moon run cmd/demo
@@ -42,11 +45,13 @@ Minimal API shape:
 
 ```moonbit
 let graph = FlowGraph::new()
-let _ = graph.add_task(TaskNode::new("collect_papers", "Collect papers"))
-let _ = graph.add_task(TaskNode::new("write_report", "Write report"))
-let _ = graph.add_dependency(TaskId::new("collect_papers"), TaskId::new("write_report"))
+guard graph.add_task(TaskNode::new("collect_papers", "Collect papers")) is Ok(_) else { fail("add task") }
+guard graph.add_task(TaskNode::new("write_report", "Write report")) is Ok(_) else { fail("add task") }
+guard graph.add_dependency(TaskId::new("collect_papers"), TaskId::new("write_report")) is Ok(_) else { fail("add dependency") }
 
 guard graph.plan() is Ok(plan) else { fail("invalid graph") }
+let trace = Trace::new()
+guard graph.to_json_checked(plan, trace) is Ok(snapshot) else { fail("invalid snapshot") }
 ```
 
 The demo follows a concrete path from literature and dataset preparation to a research report:
@@ -64,6 +69,7 @@ extract_claims    run_baseline
 Its trace records useful evidence such as the search scope, dataset snapshot, baseline configuration, and comparison rationale. It prints a Markdown report, a JSON snapshot, and a Mermaid flowchart.
 
 The full public surface and error behavior are listed in [docs/API.md](docs/API.md).
+The version 1 snapshot contract is defined by [docs/run-snapshot-v1.schema.json](docs/run-snapshot-v1.schema.json).
 
 ## Project Layout
 
@@ -74,7 +80,7 @@ moonflowgraph/
 |-- export.mbt           # Markdown and JSON export
 |-- flowgraph_test.mbt   # core behavior tests
 |-- cmd/demo/            # runnable demo
-|-- docs/                # design and roadmap
+|-- docs/                # API, design, roadmap, and JSON schema
 |-- CHANGELOG.md         # unreleased and versioned changes
 |-- README.zh.md         # Chinese documentation
 `-- PROJECT.md           # project memory and acceptance checklist
